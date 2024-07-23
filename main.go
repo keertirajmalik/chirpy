@@ -11,7 +11,6 @@ func handlerReadiness(writer http.ResponseWriter, request *http.Request) {
 	writer.Write([]byte("OK"))
 }
 
-
 func main() {
 	const port = "8080"
 
@@ -21,13 +20,13 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/app/*", metrics.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
+	mux.Handle("GET /app/*", metrics.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
 
-	mux.HandleFunc("GET /healthz", handlerReadiness)
+	mux.HandleFunc("GET /api/healthz", handlerReadiness)
 
-	mux.HandleFunc("GET /metrics", metrics.handleMetrics)
+	mux.HandleFunc("GET /admin/metrics", metrics.handleMetrics)
 
-	mux.HandleFunc("/reset", metrics.handleReset)
+	mux.HandleFunc("GET /api/reset", metrics.handleReset)
 
 	server := &http.Server{
 		Addr:    ":" + port,

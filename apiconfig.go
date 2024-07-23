@@ -5,7 +5,6 @@ import (
 	"net/http"
 )
 
-
 type apiConfig struct {
 	fileServerHits int
 }
@@ -18,13 +17,23 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 }
 
 func (cfg *apiConfig) handleMetrics(writer http.ResponseWriter, request *http.Request) {
-	writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	writer.Header().Set("Content-Type", "text/html")
 	writer.WriteHeader(http.StatusOK)
-	writer.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileServerHits)))
+
+	html := `<html>
+
+<body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited %d times!</p>
+</body>
+
+</html>`
+
+	writer.Write([]byte(fmt.Sprintf(html, cfg.fileServerHits)))
 }
 
 func (cfg *apiConfig) handleReset(writer http.ResponseWriter, request *http.Request) {
 	cfg.fileServerHits = 0
-    writer.WriteHeader(http.StatusOK)
-    writer.Write([]byte("Hit reset to 0"))
+	writer.WriteHeader(http.StatusOK)
+	writer.Write([]byte("Hit reset to 0"))
 }
