@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"slices"
+	"strings"
 )
 
 func main() {
@@ -50,7 +52,7 @@ func handleValidateChirp(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	type validResponse struct {
-		Valid bool `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}
 
 	decoder := json.NewDecoder(request.Body)
@@ -79,8 +81,10 @@ func handleValidateChirp(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	cleanMessage := validateMessage(params.Body)
+
 	response := validResponse{
-		Valid: true,
+        CleanedBody: cleanMessage,
 	}
 	dat, err := json.Marshal(response)
 	if err != nil {
@@ -92,4 +96,16 @@ func handleValidateChirp(writer http.ResponseWriter, request *http.Request) {
 	writer.WriteHeader(200)
 	writer.Write(dat)
 	return
+}
+
+func validateMessage(message string) string {
+	parts := strings.Split(message, " ")
+	badWords := []string{"kerfuffle", "sharbert", "fornax"}
+
+	for i , part := range parts {
+		if slices.Contains(badWords, strings.ToLower(part)) {
+			parts[i] = "****"
+		}
+	}
+	return strings.Join(parts, " ")
 }
