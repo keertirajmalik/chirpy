@@ -17,7 +17,8 @@ func (cfg *apiConfig) handleLogin(writer http.ResponseWriter, request *http.Requ
 
 	type response struct {
 		User
-		Token string `json:"token"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 
 	decoder := json.NewDecoder(request.Body)
@@ -55,10 +56,68 @@ func (cfg *apiConfig) handleLogin(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
+	refreshToken, err := auth.RefreshToken()
+	if err != nil {
+		respondWithError(writer, http.StatusInternalServerError, "Couldn't create refresh token")
+		return
+	}
+
+	tokens, err := cfg.DB.CreateRefreshToken(token, refreshToken)
+	if err != nil {
+		respondWithError(writer, http.StatusInternalServerError, "Couldn't generate refreshToken")
+		return
+	}
+
 	respondWithJson(writer, http.StatusOK, response{
 		User: User{
 			ID:    user.ID,
 			Email: user.Email},
-		Token: token,
+		Token:        tokens.Token,
+		RefreshToken: tokens.RefreshToken,
 	})
+}
+
+func (cfg *apiConfig) handleRefresh(writer http.ResponseWriter, request *http.Request) {
+
+	type response struct {
+		Token string `json:"token"`
+	}
+
+	auth, err := auth.GetBearerToken(request.Header)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "Invalid header")
+		return
+	}
+
+	token, err := cfg.DB.GetToken(auth)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "No token")
+		return
+	}
+
+	if token.ExpiresAt < time.Duration(time.Now().Second()) {
+		respondWithError(writer, http.StatusUnauthorized, "Timed out")
+		return
+	}
+
+	respondWithJson(writer, http.StatusOK, response{
+		Token: token.Token,
+	})
+}
+
+func (cfg *apiConfig) handleRevoke(writer http.ResponseWriter, request *http.Request) {
+
+	auth, err := auth.GetBearerToken(request.Header)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "Invalid header")
+		return
+	}
+
+	err = cfg.DB.DeleteToken(auth)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "No token found")
+		return
+	}
+
+	respondWithJson(writer, http.StatusNoContent, "")
 }

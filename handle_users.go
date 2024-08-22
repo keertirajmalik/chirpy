@@ -11,9 +11,9 @@ import (
 )
 
 type User struct {
-	ID    int    `json:"id"`
-	Email string `json:"email"`
-    Password string `json:"-"`
+	ID       int    `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"-"`
 }
 
 func (cfg *apiConfig) handleUsersCreate(writer http.ResponseWriter, request *http.Request) {
@@ -72,8 +72,13 @@ func (cfg *apiConfig) handleUsersUpdate(writer http.ResponseWriter, request *htt
 
 	subject, err := auth.ValidateJWT(token, cfg.jwtSecret)
 	if err != nil {
+
+		//refreshToken, err := cfg.DB.GetTokenByRefreshToken(token)
+		//subject, err = auth.ValidateJWT(refreshToken.Token, cfg.jwtSecret)
+		//if err != nil {
 		respondWithError(writer, http.StatusUnauthorized, "Couldn't validate JWT")
 		return
+		//}
 	}
 
 	decoder := json.NewDecoder(request.Body)
