@@ -72,13 +72,8 @@ func (cfg *apiConfig) handleUsersUpdate(writer http.ResponseWriter, request *htt
 
 	subject, err := auth.ValidateJWT(token, cfg.jwtSecret)
 	if err != nil {
-
-		//refreshToken, err := cfg.DB.GetTokenByRefreshToken(token)
-		//subject, err = auth.ValidateJWT(refreshToken.Token, cfg.jwtSecret)
-		//if err != nil {
 		respondWithError(writer, http.StatusUnauthorized, "Couldn't validate JWT")
 		return
-		//}
 	}
 
 	decoder := json.NewDecoder(request.Body)

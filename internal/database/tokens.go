@@ -2,59 +2,63 @@ package database
 
 import "time"
 
-type Token struct {
-	RefreshToken string        `json:"refresh_token"`
-	Token        string        `json:"token"`
-	ExpiresAt    time.Duration `json:"expires_at"`
+type RefreshToken struct {
+	UserID    int       `json:"user_id"`
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
-func (db *DB) CreateRefreshToken(token, refreshToken string) (Token, error) {
-	dbStructure, err := db.loadDB()
-	if err != nil {
-		return Token{}, err
-	}
-
-	newToken := Token{
-		Token:        token,
-		RefreshToken: refreshToken,
-		ExpiresAt:    time.Duration(time.Now().UTC().AddDate(0, 0, 60).Second()),
-	}
-	dbStructure.Tokens[refreshToken] = newToken
-
-	err = db.writeDB(dbStructure)
-
-	if err != nil {
-		return Token{}, err
-	}
-
-	return newToken, nil
-}
-
-func (db *DB) GetToken(refreshToken string) (Token, error) {
-	dbStructure, err := db.loadDB()
-	if err != nil {
-		return Token{}, err
-	}
-
-	token, ok := dbStructure.Tokens[refreshToken]
-	if !ok {
-		return Token{}, ErrNotExist
-	}
-
-	return token, nil
-}
-func (db *DB) DeleteToken(refreshToken string) error {
+func (db *DB) SaveRefreshToken(userID int, token string) error {
 	dbStructure, err := db.loadDB()
 	if err != nil {
 		return err
 	}
 
-	token, ok := dbStructure.Tokens[refreshToken]
-	if !ok {
-		return ErrNotExist
+	refreshToken := RefreshToken{
+		UserID:    userID,
+		Token:     token,
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	dbStructure.RefeshTokens[token] = refreshToken
+
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return err
 	}
 
-    delete(dbStructure.Tokens, token.RefreshToken)
+	return nil
+}
 
-    return db.writeDB(dbStructure)
+func (db *DB) UserForRefershToken(token string) (User, error) {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return User{}, err
+	}
+
+	refreshToken, ok := dbStructure.RefeshTokens[token]
+	if !ok {
+		return User{}, ErrNotExist
+	}
+
+	if refreshToken.ExpiresAt.Before(time.Now()) {
+		return User{}, ErrNotExist
+	}
+
+	user, err := db.GetUser(refreshToken.UserID)
+	if err != nil {
+		return User{}, err
+	}
+
+	return user, nil
+}
+
+func (db *DB) RevokeToken(token string) error {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+
+	delete(dbStructure.RefeshTokens, token)
+
+	return db.writeDB(dbStructure)
 }

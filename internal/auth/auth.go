@@ -79,12 +79,12 @@ func GetBearerToken(headers http.Header) (string, error) {
 	return splitAuth[1], nil
 }
 
-func RefreshToken() (string, error) {
-	refresh := make([]byte, 32)
-	_, err := rand.Read(refresh)
+func MakeRefreshToken() (string, error) {
+	token := make([]byte, 32)
+	_, err := rand.Read(token)
 	if err != nil {
 		return "", ErrorNoAuthHeaderIncluded
 	}
 
-	return hex.EncodeToString([]byte(refresh)), nil
+	return hex.EncodeToString(token), nil
 }

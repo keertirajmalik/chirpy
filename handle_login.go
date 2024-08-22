@@ -43,28 +43,21 @@ func (cfg *apiConfig) handleLogin(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	defaultExpiration := 60 * 60 * 24
-	if params.ExpiresInSeconds == 0 {
-		params.ExpiresInSeconds = defaultExpiration
-	} else if params.ExpiresInSeconds > defaultExpiration {
-		params.ExpiresInSeconds = defaultExpiration
-	}
-
-	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Duration(params.ExpiresInSeconds)*time.Second)
+	accessToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Hour)
 	if err != nil {
 		respondWithError(writer, http.StatusInternalServerError, "Couldn't create JWT")
 		return
 	}
 
-	refreshToken, err := auth.RefreshToken()
+	refreshToken, err := auth.MakeRefreshToken()
 	if err != nil {
 		respondWithError(writer, http.StatusInternalServerError, "Couldn't create refresh token")
 		return
 	}
 
-	tokens, err := cfg.DB.CreateRefreshToken(token, refreshToken)
+	err = cfg.DB.SaveRefreshToken(user.ID, refreshToken)
 	if err != nil {
-		respondWithError(writer, http.StatusInternalServerError, "Couldn't generate refreshToken")
+		respondWithError(writer, http.StatusInternalServerError, "Couldn't save refresh token")
 		return
 	}
 
@@ -72,52 +65,50 @@ func (cfg *apiConfig) handleLogin(writer http.ResponseWriter, request *http.Requ
 		User: User{
 			ID:    user.ID,
 			Email: user.Email},
-		Token:        tokens.Token,
-		RefreshToken: tokens.RefreshToken,
+		Token:        accessToken,
+		RefreshToken: refreshToken,
 	})
 }
 
 func (cfg *apiConfig) handleRefresh(writer http.ResponseWriter, request *http.Request) {
-
 	type response struct {
 		Token string `json:"token"`
 	}
 
-	auth, err := auth.GetBearerToken(request.Header)
+	refreshToken, err := auth.GetBearerToken(request.Header)
 	if err != nil {
-		respondWithError(writer, http.StatusUnauthorized, "Invalid header")
+		respondWithError(writer, http.StatusUnauthorized, "Couldn't find token")
 		return
 	}
 
-	token, err := cfg.DB.GetToken(auth)
+	user, err := cfg.DB.UserForRefershToken(refreshToken)
 	if err != nil {
 		respondWithError(writer, http.StatusUnauthorized, "No token")
 		return
 	}
 
-	if token.ExpiresAt < time.Duration(time.Now().Second()) {
-		respondWithError(writer, http.StatusUnauthorized, "Timed out")
+	accessToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Hour)
+	if err != nil {
+		respondWithError(writer, http.StatusUnauthorized, "Couldn't validate token")
 		return
 	}
-
 	respondWithJson(writer, http.StatusOK, response{
-		Token: token.Token,
+		Token: accessToken,
 	})
 }
 
 func (cfg *apiConfig) handleRevoke(writer http.ResponseWriter, request *http.Request) {
-
-	auth, err := auth.GetBearerToken(request.Header)
+	refreshToken, err := auth.GetBearerToken(request.Header)
 	if err != nil {
 		respondWithError(writer, http.StatusUnauthorized, "Invalid header")
 		return
 	}
 
-	err = cfg.DB.DeleteToken(auth)
+	err = cfg.DB.RevokeToken(refreshToken)
 	if err != nil {
-		respondWithError(writer, http.StatusUnauthorized, "No token found")
+		respondWithError(writer, http.StatusUnauthorized, "Couldn't revoke session")
 		return
 	}
 
-	respondWithJson(writer, http.StatusNoContent, "")
+	writer.WriteHeader(http.StatusNoContent)
 }
