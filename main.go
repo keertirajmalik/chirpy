@@ -52,13 +52,14 @@ func main() {
 	mux.HandleFunc("GET /api/chirps", config.handleChirpGet)
 	mux.HandleFunc("POST /api/chirps", config.handleChirpCreate)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", config.handleChirpGetSpecific)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", config.handleChirpDelete)
 
 	mux.HandleFunc("POST /api/users", config.handleUsersCreate)
 	mux.HandleFunc("PUT /api/users", config.handleUsersUpdate)
 
 	mux.HandleFunc("POST /api/login", config.handleLogin)
 	mux.HandleFunc("POST /api/refresh", config.handleRefresh)
-    mux.HandleFunc("POST /api/revoke", config.handleRevoke)
+	mux.HandleFunc("POST /api/revoke", config.handleRevoke)
 
 	server := &http.Server{
 		Addr:    ":" + port,
