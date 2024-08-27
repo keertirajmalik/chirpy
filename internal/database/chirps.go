@@ -1,7 +1,5 @@
 package database
 
-import "errors"
-
 type Chirp struct {
 	ID       int    `json:"id"`
 	Body     string `json:"body"`
@@ -18,7 +16,7 @@ func (db *DB) CreateChirp(body string, userId int) (Chirp, error) {
 
 	totalChirp := len(dbStructure.Chirps)
 	if totalChirp > 0 {
-		chirp, err := db.GetChirp(totalChirp - 1)
+		chirp, err := db.GetChirp(totalChirp)
 		if err != nil {
 			return Chirp{}, err
 		}
@@ -74,6 +72,10 @@ func (db *DB) DeleteChirp(chripId, userID int) error {
 		return err
 	}
 
+	chirp, ok := dbStructure.Chirps[chripId]
+	if !ok {
+		return ErrNotExist
+	}
 
 	delete(dbStructure.Chirps, chirp.ID)
 

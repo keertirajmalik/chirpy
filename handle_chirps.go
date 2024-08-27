@@ -99,11 +99,35 @@ func (cfg *apiConfig) handleChirpGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	chirps := []Chirp{}
-	for _, dbChdbChirp := range dbChirps {
-		chirps = append(chirps, Chirp{ID: dbChdbChirp.ID, Body: dbChdbChirp.Body})
+
+	authorID := r.URL.Query().Get("author_id")
+	chirpSort := r.URL.Query().Get("sort")
+
+	if strings.TrimSpace(authorID) != "" {
+		authorIDInt, err := strconv.Atoi(authorID)
+		if err != nil {
+			respondWithError(w, http.StatusNotFound, "Invalid authod Id")
+			return
+		}
+
+		for _, chirp := range dbChirps {
+			if chirp.AuthorID == authorIDInt {
+				chirps = append(chirps, Chirp{ID: chirp.ID, Body: chirp.Body, AuthorID: chirp.AuthorID})
+			}
+		}
+	} else {
+		for _, dbChirp := range dbChirps {
+			chirps = append(chirps, Chirp{ID: dbChirp.ID, Body: dbChirp.Body, AuthorID: dbChirp.AuthorID})
+		}
 	}
 
-	sort.Slice(chirps, func(i, j int) bool { return chirps[i].ID < chirps[j].ID })
+	sort.Slice(chirps, func(i, j int) bool {
+		if chirpSort == "desc" {
+			return chirps[i].ID > chirps[j].ID
+		}
+
+		return chirps[i].ID < chirps[j].ID
+	})
 
 	respondWithJson(w, http.StatusOK, chirps)
 }
@@ -153,15 +177,15 @@ func (cfg *apiConfig) handleChirpDelete(writer http.ResponseWriter, request *htt
 		return
 	}
 
-	dbChirp, err:= cfg.DB.GetChirp(chirpID)
+	dbChirp, err := cfg.DB.GetChirp(chirpID)
 	if err != nil {
-		 respondWithError(writer, http.StatusNotFound, "Couldn't get chirp")
-         return
+		respondWithError(writer, http.StatusNotFound, "Couldn't get chirp")
+		return
 	}
 
 	if dbChirp.AuthorID != userID {
 		respondWithError(writer, http.StatusForbidden, "You can't delete this chirp")
-        return
+		return
 	}
 
 	err = cfg.DB.DeleteChirp(chirpID, userID)
